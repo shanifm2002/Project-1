@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Register Page</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: url('https://images.ctfassets.net/rct0309xw2p8/50DV19bwY2YTOcQINpgYeB/e8efc6eef575505c1f4b76bbdfdb879f/shutterstock_2473124043.webp') no-repeat center center fixed;
+      background-size: cover;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+    .register-container {
+      background-color: rgba(255, 255, 255, 0.9);
+      padding: 30px;
+      border-radius: 15px;
+      box-shadow: 0px 4px 20px rgba(0,0,0,0.3);
+      width: 320px;
+      backdrop-filter: blur(8px);
+    }
+    h2 {
+      text-align: center;
+      margin-bottom: 20px;
+      color: #1e40af;
+    }
+    input[type="text"], input[type="email"], input[type="password"] {
+      width: 91%;
+      padding: 12px;
+      margin: 10px 0;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      font-size: 16px;
+    }
+    button {
+      width: 50%;
+      margin-left: 72px;
+      padding: 12px;
+      background-color: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+    button:hover { background-color: #1e40af; }
+    .error {
+      color: red;
+      text-align: center;
+      margin-top: 10px;
+      font-size: 14px;
+    }
+    .link {
+      text-align: center;
+      margin-top: 15px;
+    }
+    .link a { color: #2563eb; text-decoration: none; }
+  </style>
+</head>
+<body>
+
+  <div class="register-container">
+    <h2>Register</h2>
+    <input type="email" id="email" placeholder="Email">
+    <input type="text" id="username" placeholder="Username">
+    <input type="password" id="password" placeholder="Password">
+    <button type="button" onclick="registerUser()">Register</button>
+    <div class="error" id="error"></div>
+    <div class="link">
+      <a href="login.html">Login</a>
+    </div>
+  </div>
+
+  <script>
+    async function registerUser() {
+      const email = document.getElementById("email").value.trim();
+      const username = document.getElementById("username").value.trim();
+      const password = document.getElementById("password").value.trim();
+      const errorDiv = document.getElementById("error");
+
+      if (!email || !username || !password) {
+        errorDiv.textContent = "Please enter all fields.";
+        return;
+      }
+
+      try {
+        const res = await fetch("/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, username, password })
+        });
+
+        const data = await res.json();
+
+        if (res.status === 201) {
+          alert(data.message);
+          window.location.href = "login.html"; // redirect to login
+        } else {
+          errorDiv.textContent = data.error;
+        }
+      } catch (err) {
+        errorDiv.textContent = "Server error. Try again later.";
+      }
+    }
+  </script>
+
+</body>
+</html>

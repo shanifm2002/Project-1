@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inflation Chatbot</title>
+<style>
+  * { box-sizing: border-box; margin:0; padding:0; }
+
+  body {
+    font-family: Arial, sans-serif;
+    background-color: #f0f2f5;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    min-height: 100vh;
+    padding-top: 70px; /* space for fixed nav */
+  }
+
+  /* ✅ Fixed Navigation Bar */
+  nav {
+    width: 100%;
+    background: #1e40af;
+    padding: 15px 25px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #fff;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 1000;
+    flex-wrap: wrap;
+  }
+
+  nav .logo {
+    font-weight: bold;
+    font-size: 20px;
+    color: #fbbf24;
+  }
+
+  nav ul {
+    list-style: none;
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    margin: 0;
+    padding: 0;
+    overflow-x: auto;
+  }
+
+  nav ul li { flex-shrink: 0; }
+
+  nav ul li a {
+    color: #fff;
+    text-decoration: none;
+    font-weight: 500;
+    display: block;
+    padding: 5px 0;
+    white-space: nowrap;
+    transition: 0.3s;
+  }
+
+  nav ul li a:hover { color: #fbbf24; }
+
+  /* Chatbot container stays centered */
+  .chat-container {
+    width: 450px;
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .chat-header {
+    background-color: #2563eb;
+    color: white;
+    padding: 15px;
+    text-align: center;
+    font-weight: bold;
+  }
+
+  .chat-messages {
+    flex: 1;
+    padding: 15px;
+    overflow-y: auto;
+    height: 350px;
+  }
+
+  .message { margin-bottom: 10px; }
+  .user { text-align: right; color: #2563eb; }
+  .bot { text-align: left; color: #333; }
+
+  .chat-input {
+    display: flex;
+    border-top: 1px solid #ccc;
+  }
+
+  .chat-input input {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    outline: none;
+    font-size: 16px;
+  }
+
+  .chat-input button {
+    padding: 10px 20px;
+    border: none;
+    background-color: #2563eb;
+    color: white;
+    cursor: pointer;
+  }
+
+  .chat-input button:hover { background-color: #1e4bb8; }
+
+  /* Responsive adjustments */
+  @media (max-width: 768px) {
+    nav { flex-direction: column; align-items: flex-start; gap: 10px; }
+    nav ul { flex-direction: column; gap: 8px; width: 100%; overflow-x: visible; }
+    .chat-container { width: 90%; }
+  }
+
+  @media (max-width: 480px) {
+    .chat-container { width: 95%; }
+  }
+</style>
+</head>
+<body>
+
+  <!-- Navigation -->
+  <nav>
+    <div class="logo">📊 Inflation Portal</div>
+    <ul>
+      <li><a href="home.html">Home</a></li>
+      <li><a href="bar.html">Bar Chart</a></li>
+      <li><a href="map.html">Map</a></li>
+      <li><a href="index.html">Prediction</a></li>
+    </ul>
+  </nav>
+
+  <!-- Chatbot -->
+  <div class="chat-container">
+    <div class="chat-header">Inflation Chatbot</div>
+    <div class="chat-messages" id="chatMessages"></div>
+    <div class="chat-input">
+      <input type="text" id="userInput" placeholder="Ask me about inflation...">
+      <button onclick="sendMessage()">Send</button>
+    </div>
+  </div>
+
+<script>
+const chatMessages = document.getElementById('chatMessages');
+const userInput = document.getElementById('userInput');
+
+// Full Q&A set from your previous chatbot
+const qa = {
+  "hello": "Hello! How can I help you today?",
+  "how are you": "I'm a demo bot, I am always fine!",
+  "what is your name": "I am DemoBot.",
+  "what can you do": "I can answer your fixed questions.",
+  "bye": "Goodbye! Have a nice day!",
+  "what is inflation": "Inflation is the rate at which the general level of prices for goods and services rises, reducing purchasing power.",
+  "types of inflation": "There are several types: demand-pull, cost-push, built-in inflation, and hyperinflation.",
+  "causes of inflation": "Inflation can be caused by increased demand, rising production costs, or expansion of the money supply.",
+  "effects of inflation": "Inflation affects purchasing power, savings, investments, and can impact interest rates.",
+  "how is inflation measured": "Inflation is measured using price indices such as the Consumer Price Index (CPI) and Producer Price Index (PPI).",
+  "what is cpi": "CPI (Consumer Price Index) measures the average change in prices paid by consumers for a basket of goods and services.",
+  "what is ppi": "PPI (Producer Price Index) measures the average change in selling prices received by domestic producers for their output.",
+  "current inflation rate": "The current inflation rate varies by country and can be checked from official government statistics.",
+  "impact on economy": "Moderate inflation is normal for economic growth, but high inflation can reduce savings and purchasing power.",
+  "difference between inflation and deflation": "Inflation is rising prices; deflation is falling prices.",
+  "how to control inflation": "Inflation can be controlled through monetary policy, fiscal policy, and supply-side interventions.",
+  "what is hyperinflation": "Hyperinflation is extremely rapid and uncontrollable inflation, often exceeding 50% per month.",
+  "examples of hyperinflation": "Historical examples include Zimbabwe in 2008 and Germany in the 1920s.",
+  "inflation vs interest rates": "Higher inflation often leads to higher interest rates to control money supply and curb price rises.",
+  "relationship with unemployment": "The Phillips Curve suggests an inverse relationship between inflation and unemployment in the short run.",
+  "cost of living increase": "Inflation raises the cost of living as everyday goods and services become more expensive.",
+  "real vs nominal income": "Nominal income is the actual money earned; real income is adjusted for inflation.",
+  "stagflation": "Stagflation is a situation where inflation is high but economic growth is slow and unemployment is high.",
+  "how to protect savings": "Invest in assets like gold, real estate, or inflation-indexed bonds to protect against inflation.",
+  "deflation risks": "Deflation can lead to lower spending, reduced profits, and economic stagnation.",
+  "wage inflation": "Wage inflation occurs when salaries increase across the economy, often driving higher prices.",
+  "core inflation": "Core inflation excludes volatile items like food and energy to show long-term trends.",
+  "inflation targeting": "Central banks often use inflation targeting to stabilize prices and manage expectations.",
+  "relationship with currency": "High inflation can weaken a currency's value compared to others.",
+  "forecasting inflation": "Inflation is forecasted using economic models, market data, and trends in money supply."
+};
+
+function sendMessage() {
+  const userText = userInput.value.trim().toLowerCase();
+  if(!userText) return;
+
+  appendMessage('user', userText);
+
+  const botResponse = qa[userText] || "Sorry, I don't have an answer to that. Try another inflation question!";
+  setTimeout(() => { appendMessage('bot', botResponse); }, 500);
+  userInput.value='';
+}
+
+function appendMessage(sender, text) {
+  const msgDiv = document.createElement('div');
+  msgDiv.classList.add('message', sender);
+  msgDiv.textContent = text;
+  chatMessages.appendChild(msgDiv);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+userInput.addEventListener('keypress', e => {
+  if(e.key==='Enter') sendMessage();
+});
+</script>
+</body>
+</html>

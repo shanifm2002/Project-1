@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>🌍 World Oil Prices Map</title>
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; background: #f7f7f7; color: #333; }
+    nav {
+      width: 100%; background: #1e40af; padding: 15px 25px; display: flex;
+      justify-content: space-between; align-items: center; color: #fff;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15); position: fixed; top: 0; left: 0;
+      z-index: 1000; flex-wrap: wrap;
+    }
+    nav .logo { font-weight: bold; font-size: 20px; flex-shrink: 0; }
+    nav ul { list-style: none; display: flex; gap: 20px; flex-wrap: wrap; margin: 0; padding: 0; overflow-x: auto; }
+    nav ul li { flex-shrink: 0; }
+    nav ul li a { color: #fff; text-decoration: none; font-weight: 500; transition: 0.3s; display: block; padding: 5px 0; white-space: nowrap; }
+    nav ul li a:hover { color: #ffdd57; }
+    main { padding-top: 100px; }
+    h1 { text-align: center; margin: 20px 0; font-size: 2em; color: #444; }
+    .controls { display: flex; justify-content: center; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+    .controls label { font-weight: bold; }
+    select { padding: 8px 12px; font-size: 16px; border-radius: 6px; border: 1px solid #ccc; outline: none; transition: 0.3s; min-width: 120px; cursor: pointer; }
+    select:hover { border-color: #888; }
+    #map_chart { width: 90%; max-width: 1400px; height: 70vh; margin: 0 auto 40px auto; box-shadow: 0 4px 10px rgba(0,0,0,0.1); border-radius: 8px; background: #fff; padding: 10px; }
+    @media (max-width: 768px) { nav { flex-direction: column; align-items: flex-start; gap: 10px; } nav ul { flex-direction: column; gap: 8px; width: 100%; overflow-x: visible; } main { padding-top: 140px; } #map_chart { width: 95%; height: 60vh; } h1 { font-size: 1.5em; } select { font-size: 14px; min-width: 100px; } }
+    @media (max-width: 480px) { h1 { font-size: 1.3em; } #map_chart { height: 50vh; } }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="logo">📊 Oil Prices Portal</div>
+  <ul>
+    <li><a href="home.html">Home</a></li>
+    <li><a href="chat.html">Chatbot</a></li>
+    <li><a href="index.html">Prediction</a></li>
+    <li><a href="bar.html">Bar Chart</a></li>
+  </ul>
+</nav>
+
+<main>
+  <h1>🌍 World Oil Prices Map</h1>
+
+  <div class="controls">
+    <label for="year_select">Select Year: </label>
+    <select id="year_select">
+      <option value="">Latest</option>
+    </select>
+  </div>
+
+  <div id="map_chart"></div>
+</main>
+
+<script>
+  async function populateYearOptions() {
+    try {
+      const res = await fetch("/years_oil"); // ✅ Corrected endpoint
+      const years = await res.json();
+      const yearSelect = document.getElementById("year_select");
+      yearSelect.innerHTML = '<option value="">Latest</option>';
+      years.forEach(y => {
+        const option = document.createElement("option");
+        option.value = y;
+        option.textContent = y;
+        yearSelect.appendChild(option);
+      });
+
+      yearSelect.addEventListener("change", function() {
+        const selectedYear = this.value ? parseInt(this.value) : null;
+        updateMap(selectedYear);
+      });
+    } catch (err) { 
+      console.error("Error fetching years:", err); 
+    }
+  }
+
+  async function loadCountryData(year = null) {
+    try {
+      const url = year ? `/all_countries_oil?year=${year}` : "/all_countries_oil";
+      const res = await fetch(url);
+      const data = await res.json();
+      drawMap(data);
+    } catch (err) { 
+      console.error("Error fetching country data:", err); 
+    }
+  }
+
+  function drawMap(data) {
+    const countries = data.map(d => d.country);
+    const oilPrices = data.map(d => d.oil_price);
+
+    const trace = {
+      type: 'choropleth',
+      locations: countries,
+      locationmode: 'country names',
+      z: oilPrices,
+      text: countries.map((c,i) => c + ": $" + oilPrices[i].toFixed(2)),
+      colorscale: 'YlOrBr',
+      marker: { line: { color: 'rgb(180,180,180)', width: 0.5 } },
+      colorbar: { title: 'Oil Price (USD)' },
+      hovertemplate: '%{text}<extra></extra>'
+    };
+
+    const layout = {
+      title: 'World Oil Prices',
+      geo: { showframe: false, showcoastlines: true, projection: { type: 'natural earth' }, bgcolor: '#f7f7f7' },
+      margin: { t: 50, b: 0 }
+    };
+
+    Plotly.newPlot('map_chart', [trace], layout, {responsive: true});
+  }
+
+  async function updateMap(year) {
+    await loadCountryData(year);
+  }
+
+  window.onload = async function() {
+    await populateYearOptions();
+    loadCountryData();
+  };
+</script>
+</body>
+</html>

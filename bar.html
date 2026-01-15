@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Unemployment Dashboard</title>
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <style>
+    body { font-family: "Segoe UI", Arial, sans-serif; margin: 0; padding: 0; background: #f9fafc; color: #333; }
+
+    /* Navigation Bar */
+    nav {
+      background: #1e40af;
+      color: white;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px 40px;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+    }
+    nav .logo {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #fbbf24;
+    }
+    nav ul {
+      list-style: none;
+      display: flex;
+      gap: 20px;
+    }
+    nav ul li a {
+      color: white;
+      text-decoration: none;
+      font-weight: 500;
+      transition: 0.3s;
+    }
+    nav ul li a:hover {
+      color: #fbbf24;
+    }
+
+    h1 { text-align: center; color: black; padding: 20px; margin: 0; font-size: 2rem; }
+    h2 { text-align: center; color: #2c3e50; margin-bottom: 10px; }
+    .chart-container { margin: 40px auto; padding: 20px; max-width: 1200px; background: #fff; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    .chart { width: 100%; height: 500px; }
+    #year_selector { display: block; margin: 0 auto 20px auto; padding: 6px 12px; font-size: 1rem; border-radius: 6px; border: 1px solid #ccc; }
+
+    @media (max-width: 768px) { h1 { font-size: 1.5rem; } h2 { font-size: 1.2rem; } .chart { height: 400px; } }
+    @media (max-width: 480px) { h1 { font-size: 1.2rem; padding: 15px; } h2 { font-size: 1rem; } .chart { height: 350px; } }
+  </style>
+</head>
+<body>
+
+  <!-- Navigation -->
+  <nav>
+    <div class="logo">Inflation App</div>
+    <ul>
+      <li><a href="home.html">Home</a></li>
+      <li><a href="index.html">Predict</a></li>
+      <li><a href="chat.html">Chat with Bot</a></li>
+      <li><a href="map.html">Map</a></li>
+    </ul>
+  </nav>
+
+  <h1>Unemployment Rate Dashboard</h1>
+
+  <!-- Year Dropdown -->
+  <div style="text-align:center;">
+    <label for="year_selector"><strong>Select Year:</strong></label>
+    <select id="year_selector" onchange="updateCharts()">
+      <!-- options populated dynamically -->
+    </select>
+  </div>
+
+  <!-- Top 10 Unemployment Chart -->
+  <div class="chart-container">
+    <h2>Top 10 Countries by Unemployment</h2>
+    <div id="top10_chart" class="chart"></div>
+  </div>
+
+  <!-- All Countries Unemployment Chart -->
+  <div class="chart-container">
+    <h2>🌍 All Countries by Unemployment</h2>
+    <div id="all_chart" class="chart"></div>
+  </div>
+
+  <script>
+    let availableYears = [];
+
+    // Populate dropdown with available years from /status
+    async function populateYears() {
+      try {
+        const res = await fetch("/status");
+        const data = await res.json();
+        const yearsSet = new Set();
+
+        Object.values(data.historical_data).forEach(d => d.years.forEach(y => yearsSet.add(y)));
+        availableYears = Array.from(yearsSet).sort((a,b)=>b-a);
+
+        const selector = document.getElementById("year_selector");
+        selector.innerHTML = `<option value="">Latest Year</option>` +
+                             availableYears.map(y => `<option value="${y}">${y}</option>`).join('');
+      } catch(err) {
+        console.error("Error fetching years:", err);
+      }
+    }
+
+    // Load Top 10 Unemployment Bar Chart
+    async function loadTop10(year=null) {
+      try {
+        const url = year ? `/top10?year=${year}` : "/top10";
+        const res = await fetch(url);
+        const data = await res.json();
+
+        if (!Array.isArray(data)) { alert("Error fetching Top 10 data"); return; }
+
+        const countries = data.map(d => d.country);
+        const unemployment = data.map(d => d.unemployment); // UNEMPLOYMENT RATE
+
+        const trace = {
+          x: countries,
+          y: unemployment,
+          type: "bar",
+          marker: { color: "orange" }
+        };
+
+        const layout = {
+          title: `Top 10 Countries by Unemployment (${year || "Latest Year"})`,
+          xaxis: { title: "Country" },
+          yaxis: { title: "Unemployment Rate (%)" },
+          autosize: true
+        };
+
+        Plotly.newPlot("top10_chart", [trace], layout, {responsive:true});
+      } catch(err) { console.error(err); }
+    }
+
+    // Load All Countries Unemployment Bar Chart
+    async function loadAllCountries(year=null) {
+      try {
+        const url = year ? `/all_countries?year=${year}` : "/all_countries";
+        const res = await fetch(url);
+        const data = await res.json();
+
+        if (!Array.isArray(data)) { alert("Error fetching all countries"); return; }
+
+        const countries = data.map(d => d.country);
+        const unemployment = data.map(d => d.unemployment); // UNEMPLOYMENT RATE
+
+        const trace = {
+          x: countries,
+          y: unemployment,
+          type: "bar",
+          marker: { color: "steelblue" }
+        };
+
+        const layout = {
+          title: `All Countries by Unemployment (${year || "Latest Year"})`,
+          xaxis: { title: "Country", tickangle: -45 },
+          yaxis: { title: "Unemployment Rate (%)" },
+          margin: { b: 200 },
+          autosize: true
+        };
+
+        Plotly.newPlot("all_chart", [trace], layout, {responsive:true});
+      } catch(err) { console.error(err); }
+    }
+
+    // Called when year dropdown changes
+    function updateCharts() {
+      const selectedYear = document.getElementById("year_selector").value || null;
+      loadTop10(selectedYear);
+      loadAllCountries(selectedYear);
+    }
+
+    // Initial page load
+    window.onload = async function() {
+      await populateYears();  // fill year dropdown
+      updateCharts();         // load charts with latest year by default
+    };
+  </script>
+</body>
+</html>

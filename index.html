@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Inflation ML Frontend</title>
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #f0f2f5;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 80px;
+  }
+
+  nav {
+    width: 100%;
+    background: #1e40af;
+    padding: 15px 25px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #fff;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 1000;
+  }
+  nav .logo { font-weight: bold; font-size: 20px; }
+  nav ul { list-style: none; display: flex; gap: 20px; }
+  nav ul li a { color: #fff; text-decoration: none; font-weight: 500; transition: 0.3s; }
+  nav ul li a:hover { color: #ffdd57; }
+
+  h2 { color: #1e40af; margin: 20px 0; text-align: center; }
+
+  .container {
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.1);
+    padding: 30px;
+    max-width: 900px;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-bottom: 30px;
+  }
+
+  label { font-weight: 600; margin-bottom: 5px; display: block; }
+  select, input { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; margin-bottom: 5px; }
+  select:focus, input:focus { border-color: #1e40af; outline: none; }
+
+  button {
+    background: #1e40af;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 14px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.3s;
+  }
+  button:hover { background: #1b3a9b; }
+
+  #predictResult { margin-top: 10px; font-weight: 600; text-align: center; color: #2563eb; }
+  #yearError { color: red; font-size: 14px; margin-bottom: 10px; }
+  #chart { width: 100%; height: 500px; margin-top: 25px; display: none; }
+
+  @media(max-width: 600px){
+    nav { flex-direction: column; gap: 10px; }
+    .container { padding: 20px; }
+    #chart { height: 350px; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="logo">📊 Inflation Portal</div>
+  <ul>
+    <li><a href="home.html">Home</a></li>
+    <li><a href="chat.html">Chatbot</a></li>
+    <li><a href="bar.html">Bar Chart</a></li>
+    <li><a href="map.html">Map</a></li>
+  </ul>
+</nav>
+
+<h2>Global Inflation Prediction</h2>
+
+<div class="container">
+  <label>Select Country:</label>
+  <select id="countrySelect">
+    <option value="" disabled selected>Select a country</option>
+  </select>
+
+  <label>Years to predict (comma separated):</label>
+  <input id="yearsInput" type="text" placeholder="e.g., 2025,2030,2035" />
+  <div id="yearError"></div>
+
+  <button id="predictBtn">Predict & Plot</button>
+  <div id="predictResult"></div>
+  <div id="chart"></div>
+</div>
+
+<script>
+const API_BASE = "http://127.0.0.1:5000";
+let serverData = {};
+
+// Load countries
+async function loadCountries() {
+  try {
+    const res = await fetch(`${API_BASE}/status`);
+    const data = await res.json();
+    serverData = data.historical_data || {};
+    const sel = document.getElementById('countrySelect');
+    sel.innerHTML = '<option value="" disabled selected>Select a country</option>';
+    data.trained_countries.sort().forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c;
+      opt.text = c;
+      sel.appendChild(opt);
+    });
+  } catch (err) { 
+    console.error('Error loading countries:', err); 
+    alert("Failed to load country list from the server.");
+  }
+}
+loadCountries();
+
+// Predict & plot
+document.getElementById('predictBtn').addEventListener('click', async () => {
+  const country = document.getElementById('countrySelect').value;
+  const yearsText = document.getElementById('yearsInput').value.trim();
+  const yearErrorDiv = document.getElementById('yearError');
+  yearErrorDiv.innerText = '';
+
+  if (!country) {
+    alert('Please select a country before proceeding.');
+    return;
+  }
+  if (!yearsText) {
+    yearErrorDiv.innerText = 'Please enter one or more years separated by commas.';
+    return;
+  }
+
+  if (!/^[0-9,\s]+$/.test(yearsText)) {
+    yearErrorDiv.innerText = 'Invalid input: Only numbers and commas are allowed.';
+    return;
+  }
+
+  let years = yearsText.split(',')
+    .map(y => y.trim())
+    .filter(y => y.length > 0)
+    .map(y => parseInt(y));
+
+  const invalidYears = years.filter(y => isNaN(y) || y < 1900 || y > 2100);
+  if (invalidYears.length > 0) {
+    yearErrorDiv.innerText = `Invalid year(s): ${invalidYears.join(', ')}. Enter 4-digit years between 1900 and 2100.`;
+    return;
+  }
+
+  years = [...new Set(years)];
+
+  // Allow current year (2025) and future years
+  const currentYear = new Date().getFullYear();
+  const pastYears = years.filter(y => y < currentYear); // only strictly past years invalid
+  if (pastYears.length > 0) {
+    yearErrorDiv.innerText = `Year(s) ${pastYears.join(', ')} are in the past. Please enter ${currentYear} or later.`;
+    return;
+  }
+
+  document.getElementById('predictResult').innerText = 'Requesting predictions...';
+  document.getElementById('chart').style.display = 'none';
+
+  try {
+    const res = await fetch(`${API_BASE}/predict`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ country, years })
+    });
+    const data = await res.json();
+
+    if (!res.ok) { 
+      document.getElementById('predictResult').innerText = 'Error: ' + (data.error || JSON.stringify(data)); 
+      return; 
+    }
+
+    const hist = serverData[country] || { years: [], inflation: [] };
+    const traceHist = { x: hist.years, y: hist.inflation, mode: 'lines+markers', name: `${country} Historical` };
+    const tracePred = { x: data.years, y: data.inflation_predictions, mode: 'lines+markers', name: `${country} Prediction` };
+
+    document.getElementById('chart').style.display = 'block';
+    Plotly.newPlot('chart', [traceHist, tracePred], {
+      title: `Inflation Prediction - ${country}`,
+      xaxis: { title: 'Year' },
+      yaxis: { title: 'Inflation (%)' },
+      margin: { t: 50, r: 30, b: 50, l: 60 }
+    });
+
+    document.getElementById('predictResult').innerText = 'Prediction complete ✔️';
+  } catch (err) {
+    console.error(err);
+    document.getElementById('predictResult').innerText = 'Request failed: ' + err;
+  }
+});
+</script>
+
+</body>
+</html>
